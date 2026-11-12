@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 
-# macOS: universal binary (Apple Silicon + Intel), runs on macOS 12 and later
+# macOS: universal binary (Apple Silicon + Intel), runs on macOS 12 and later.
+# Must be set before project(); other platforms ignore these variables.
 set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
 set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
+
 project(PhaseScope VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 17)

@@ -1,0 +1,64 @@
+PhaseScope @VERSION@
+@UNDERLINE@
+
+Phase and mono compatibility analyzer for mixing and mastering
+(VST3 / AU / Standalone).
+
+Copyright (C) 2026 notpumbaa
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See LICENSE.txt for the full license text.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+
+Source code
+-----------
+
+The complete corresponding source code of this build is available at:
+
+    @SOURCE_URL@
+
+Project page, documentation and all releases:
+
+    https://github.com/notpumbaa/PhaseScope
+
+
+Installation
+------------
+
+macOS (Apple Silicon + Intel, macOS 12 or later)
+  - Audio Unit: copy PhaseScope.component to ~/Library/Audio/Plug-Ins/Components/
+  - VST3:       copy PhaseScope.vst3      to ~/Library/Audio/Plug-Ins/VST3/
+  - Standalone: copy PhaseScope.app       to /Applications/
+  - The builds are not notarized. Remove the quarantine flag once in Terminal:
+      xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PhaseScope.component
+      xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/PhaseScope.vst3
+  - Restart your DAW (Logic: Plug-in Manager -> Reset & Rescan if needed).
+
+Windows (64-bit)
+  - VST3: copy the PhaseScope.vst3 folder to C:\Program Files\Common Files\VST3\
+  - Standalone: run PhaseScope.exe. The build is not code-signed, so Windows
+    SmartScreen may warn on first start ("More info" -> "Run anyway").
+  - Let your DAW rescan its plugins.
+
+
+Usage
+-----
+
+Insert PhaseScope as the last plugin on the master bus (after the limiter) so
+it measures what is actually played back.
+
+
+Third-party components
+----------------------
+
+PhaseScope includes third-party software. Their licenses are in the folder
+"third-party-licenses". See THIRD-PARTY-NOTICES.txt for an overview.
+
+VST is a registered trademark of Steinberg Media Technologies GmbH.
+Audio Units is a trademark of Apple Inc.

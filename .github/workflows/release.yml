@@ -1,0 +1,105 @@
+name: Release
+
+# One-click release: Actions → Release → Run workflow (on main).
+# Reads the version from CMakeLists.txt and the release notes from CHANGELOG.md,
+# creates the tag + GitHub release, then builds macOS + Windows and attaches the ZIPs.
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "Extra notes (optional, Markdown; shown above the changelog entry)"
+        required: false
+        default: ""
+      draft:
+        description: "Create as draft (publish manually after checking)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  create:
+    name: Create tag + release
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read version from CMakeLists.txt
+        id: version
+        run: |
+          VERSION="$(sed -n 's/^project(PhaseScope VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          [ -n "$VERSION" ] || { echo "::error::Version not found in CMakeLists.txt"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      - name: Check that the version is new
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" > /dev/null \
+             || gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::error::$TAG already exists. Bump the version in CMakeLists.txt first."
+            exit 1
+          fi
+
+      - name: Read changelog entry
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Everything below "## [x.y.z]" up to the next "## [" heading, without link definitions
+          awk -v v="$VERSION" '
+            index($0, "## [" v "]") == 1 { found = 1; next }
+            found && /^## \[/            { exit }
+            found && /^\[[^]]+\]: /      { next }
+            found                        { print }
+          ' CHANGELOG.md > changelog-entry.md
+          if ! grep -q '[^[:space:]]' changelog-entry.md; then
+            echo "::error::CHANGELOG.md has no entry for $VERSION. Add a '## [$VERSION]' section first."
+            exit 1
+          fi
+          cat changelog-entry.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          NOTES: ${{ inputs.notes }}
+          DRAFT: ${{ inputs.draft }}
+        run: |
+          {
+            if [ -n "$NOTES" ]; then printf '%s\n\n' "$NOTES"; fi
+            cat changelog-entry.md
+            echo
+            echo "## Downloads"
+            echo
+            echo "- macOS (Universal: Apple Silicon + Intel, macOS 12+): AU, VST3, Standalone"
+            echo "- Windows (64-bit): VST3, Standalone"
+            echo
+            echo "Each ZIP contains the plugin, \`LICENSE.txt\` (AGPL-3.0), \`README.txt\` with installation steps and third-party licenses."
+            echo "The ZIPs are attached automatically by the build (about 20 minutes)."
+            echo
+          } > notes.md
+          flags=()
+          if [ "$DRAFT" = "true" ]; then flags+=(--draft); fi
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "PhaseScope ${TAG#v}" \
+            --notes-file notes.md --generate-notes "${flags[@]}"
+
+  build:
+    name: Build + attach ZIPs
+    needs: create
+    uses: ./.github/workflows/build.yml
+    with:
+      release_tag: ${{ needs.create.outputs.tag }}
+    permissions:
+      contents: write

@@ -12,6 +12,7 @@ First public release.
 - 10-second correlation history for full band and bass
 - Adjustable integration time (50–3000 ms)
 - Mono monitor switch
-- VST3, AU and Standalone formats; macOS builds are universal (Apple Silicon + Intel)
+- macOS: AU, VST3 and Standalone, universal binary (Apple Silicon + Intel), macOS 12+
+- Windows: VST3 and Standalone (64-bit)
 
 [1.0.0]: https://github.com/notpumbaa/PhaseScope/releases/tag/v1.0.0

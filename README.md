@@ -8,25 +8,33 @@ PhaseScope shows not only *whether* your mix has phase problems, but *where* the
 
 ## Download
 
-Grab the latest build from the [Releases](../../releases) page.
+Grab the latest version from the [Releases](../../releases/latest) page.
 
 | File | Contents |
 |---|---|
-| `PhaseScope-<version>-macOS.zip` | VST3, AU and Standalone app (universal: Apple Silicon + Intel, macOS 12+) |
+| `PhaseScope-macOS-AU.zip` | Audio Unit (Logic Pro, GarageBand, …) |
+| `PhaseScope-macOS-VST3.zip` | VST3 plugin |
+| `PhaseScope-macOS-Standalone.zip` | Standalone app |
+| `PhaseScope-Windows-VST3.zip` | VST3 plugin (64-bit) |
+| `PhaseScope-Windows-Standalone.zip` | Standalone app (64-bit) |
 
-Windows and Linux users can [build from source](#building) in a few minutes.
+macOS builds are universal (Apple Silicon + Intel) and run on macOS 12 or later. Every ZIP includes a `README.txt` with installation steps and the license files.
 
 ### Installing on macOS
 
-1. Unzip and copy
-   - `PhaseScope.vst3` → `~/Library/Audio/Plug-Ins/VST3/`
-   - `PhaseScope.component` → `~/Library/Audio/Plug-Ins/Components/`
-   - `PhaseScope.app` → `/Applications/` (optional)
+1. Copy `PhaseScope.component` to `~/Library/Audio/Plug-Ins/Components/` and/or `PhaseScope.vst3` to `~/Library/Audio/Plug-Ins/VST3/`.
 2. The builds are not notarized by Apple, so macOS may block them the first time. Remove the quarantine flag once in Terminal:
    ```bash
-   xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/VST3/PhaseScope.vst3 ~/Library/Audio/Plug-Ins/Components/PhaseScope.component
+   xattr -dr com.apple.quarantine ~/Library/Audio/Plug-Ins/Components/PhaseScope.component ~/Library/Audio/Plug-Ins/VST3/PhaseScope.vst3
    ```
 3. Rescan plugins in your DAW. In Logic Pro you'll find it under *Audio Units → PhaseScope*.
+
+### Installing on Windows
+
+1. Copy the `PhaseScope.vst3` folder to `C:\Program Files\Common Files\VST3\`.
+2. Rescan plugins in your DAW.
+
+The Windows builds are not code-signed, so SmartScreen may warn when you start the standalone app for the first time (*More info → Run anyway*).
 
 ## What it shows
 
@@ -57,40 +65,16 @@ The screenshot at the top shows the problem case: the bass flips polarity on one
 
 Put it as the last plugin on the master bus (after the limiter), so it measures what actually gets played back.
 
-## Building
+## Building from source
 
-Requirements: CMake ≥ 3.22, a C++17 compiler (Visual Studio 2022 on Windows, Xcode on macOS) and Git. JUCE is downloaded automatically on first configure.
+Only needed for Linux or development. Requirements: CMake ≥ 3.22, a C++17 compiler and Git; JUCE is downloaded automatically.
 
-**macOS** (universal binary, macOS 12+)
-```bash
-cmake -B build -G Xcode
-cmake --build build --config Release
-```
-Output: `build/PhaseScope_artefacts/Release/{VST3,AU,Standalone}/`
-
-**Windows**
-```bash
-cmake -B build -G "Visual Studio 17 2022"
-cmake --build build --config Release
-```
-Copy `build\PhaseScope_artefacts\Release\VST3\PhaseScope.vst3` to `C:\Program Files\Common Files\VST3\`.
-
-**Linux** (needs `libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libfreetype-dev libfontconfig1-dev` among others)
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake --build build --config Release
 ```
 
-To use a local JUCE checkout, pass `-DJUCE_DIR=/path/to/JUCE`.
-
-### Regenerating the screenshots
-
-The images in `docs/` are rendered offscreen from synthetic test signals:
-```bash
-cmake -B build-tools -DPHASESCOPE_BUILD_SCREENSHOTS=ON
-cmake --build build-tools --target PhaseScopeScreenshots --config Release
-```
-Then run the `PhaseScopeScreenshots` binary from `build-tools/PhaseScopeScreenshots_artefacts/` with `docs` as its argument.
+The plugins end up in `build/PhaseScope_artefacts/Release/`. On Linux you'll need the usual JUCE dependencies (`libasound2-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libfreetype-dev libfontconfig1-dev`). The screenshots in `docs/` are rendered by `tools/Screenshots.cpp` (configure with `-DPHASESCOPE_BUILD_SCREENSHOTS=ON`).
 
 ## License
 

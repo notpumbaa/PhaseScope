@@ -1,0 +1,22 @@
+Third-party notices for PhaseScope
+==================================
+
+PhaseScope is built with the components listed below. The full license
+texts are in the folder "third-party-licenses".
+
+Component                     License                         File in third-party-licenses/
+----------------------------  ------------------------------  ------------------------------------
+JUCE Framework 8              AGPLv3 (used under this option) JUCE-LICENSE.md
+Steinberg VST3 SDK            GPLv3 / Steinberg VST3 License  VST3_SDK-LICENSE.txt
+Apple AudioUnitSDK            Apache License 2.0              AudioUnitSDK-LICENSE.txt
+zlib                          zlib License                    zlib-README.txt
+libpng (pnglib)               libpng / zlib License           pnglib-LICENSE.txt
+jpeglib                       Independent JPEG Group License  jpeglib-README.txt
+FLAC                          BSD License                     FLAC-LICENSE.txt
+Ogg Vorbis                    BSD License                     OggVorbis-LICENSE.txt
+HarfBuzz                      Old MIT License                 HarfBuzz-COPYING.txt
+SheenBidi                     Apache License 2.0              SheenBidi-LICENSE.txt
+
+The JUCE Framework modules are dual-licensed under the AGPLv3 and the
+commercial JUCE licence. PhaseScope uses them under the AGPLv3.
+More information: https://juce.com

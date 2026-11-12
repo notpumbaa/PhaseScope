@@ -1,0 +1,181 @@
+name: Build
+
+on:
+  # Push: main and work branches. Tags are built through the release workflow.
+  push:
+    branches: [main, "claude/**"]
+    paths-ignore: ["**.md", "docs/**", "LICENSE", ".github/dependabot.yml"]
+  pull_request:
+    paths-ignore: ["**.md", "docs/**", "LICENSE", ".github/dependabot.yml"]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to attach the ZIPs to (empty = build only)"
+        required: false
+        default: ""
+  workflow_call:          # called by the release workflow
+    inputs:
+      release_tag:
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.release_tag }}
+
+jobs:
+  macos:
+    name: macOS (AU + VST3 + Standalone, Universal)
+    runs-on: macos-15-intel   # arm64 runners are often busy; still builds a universal binary (arm64 + x86_64)
+    timeout-minutes: 45
+    # Work branches: a new push cancels the old build. main and releases always finish.
+    concurrency:
+      group: build-macos-${{ inputs.release_tag || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' && (inputs.release_tag || '') == '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4 --target PhaseScope_VST3 PhaseScope_AU PhaseScope_Standalone
+
+      - name: Ad-hoc sign
+        run: |
+          ART=build/PhaseScope_artefacts/Release
+          codesign --force --deep --sign - "$ART/VST3/PhaseScope.vst3"
+          codesign --force --deep --sign - "$ART/AU/PhaseScope.component"
+          codesign --force --deep --sign - "$ART/Standalone/PhaseScope.app"
+
+      - name: Check universal binary (arm64 + x86_64)
+        run: |
+          ART=build/PhaseScope_artefacts/Release
+          for bin in "$ART/VST3/PhaseScope.vst3/Contents/MacOS/PhaseScope" \
+                     "$ART/AU/PhaseScope.component/Contents/MacOS/PhaseScope" \
+                     "$ART/Standalone/PhaseScope.app/Contents/MacOS/PhaseScope"; do
+            archs="$(lipo -archs "$bin")"
+            echo "$bin: $archs"
+            [[ "$archs" == *arm64* && "$archs" == *x86_64* ]] || { echo "::error::$bin is not a universal binary ($archs)"; exit 1; }
+          done
+
+      - name: Validate AU (auval)
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R build/PhaseScope_artefacts/Release/AU/PhaseScope.component ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          auval -v aufx Phs1 Phsc
+
+      - name: Validate VST3 (pluginval)
+        run: |
+          curl -sSL -o pluginval.zip https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+          ./pluginval.app/Contents/MacOS/pluginval --strictness-level 5 --validate-in-process --skip-gui-tests \
+            --validate build/PhaseScope_artefacts/Release/VST3/PhaseScope.vst3
+
+      - name: Package (incl. licenses)
+        run: |
+          ART=build/PhaseScope_artefacts/Release
+          packaging/stage-docs.sh build/_deps/juce-src docs-stage "${RELEASE_TAG:-$GITHUB_SHA}"
+          mkdir -p dist stage
+          pack() {  # $1 = plugin bundle, $2 = ZIP name without .zip
+            mkdir -p "stage/$2"
+            ditto "$1" "stage/$2/$(basename "$1")"
+            cp -R docs-stage/. "stage/$2/"
+            ditto -c -k --keepParent "stage/$2" "dist/$2.zip"
+          }
+          pack "$ART/VST3/PhaseScope.vst3"      PhaseScope-macOS-VST3
+          pack "$ART/AU/PhaseScope.component"   PhaseScope-macOS-AU
+          pack "$ART/Standalone/PhaseScope.app" PhaseScope-macOS-Standalone
+
+      - name: Check ZIP contents
+        run: |
+          for z in dist/*.zip; do
+            unzip -l "$z"
+            for f in LICENSE.txt README.txt THIRD-PARTY-NOTICES.txt third-party-licenses/JUCE-LICENSE.md; do
+              unzip -l "$z" | grep -q "/$f\$" || { echo "::error::$f missing in $z"; exit 1; }
+            done
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PhaseScope-macOS
+          path: dist/*.zip
+
+      - name: Attach to release
+        if: env.RELEASE_TAG != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" dist/*.zip --clobber --repo "$GITHUB_REPOSITORY"
+
+  windows:
+    name: Windows (VST3 + Standalone)
+    runs-on: windows-latest
+    timeout-minutes: 60
+    concurrency:
+      group: build-windows-${{ inputs.release_tag || github.ref }}
+      cancel-in-progress: ${{ github.ref != 'refs/heads/main' && (inputs.release_tag || '') == '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure
+        run: cmake -B build
+
+      - name: Build
+        run: cmake --build build --config Release --parallel 4 --target PhaseScope_VST3 PhaseScope_Standalone
+
+      - name: Validate VST3 (pluginval)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval
+          ./pluginval/pluginval.exe --strictness-level 5 --validate-in-process --skip-gui-tests `
+            --validate build/PhaseScope_artefacts/Release/VST3/PhaseScope.vst3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Stage licenses
+        shell: bash
+        run: packaging/stage-docs.sh build/_deps/juce-src docs-stage "${RELEASE_TAG:-$GITHUB_SHA}"
+
+      - name: Package (incl. licenses)
+        shell: pwsh
+        run: |
+          $ART = "build/PhaseScope_artefacts/Release"
+          New-Item -ItemType Directory -Force dist | Out-Null
+          function Pack($item, $name) {
+            $dir = "stage/$name"
+            New-Item -ItemType Directory -Force $dir | Out-Null
+            Copy-Item -Recurse $item $dir
+            Copy-Item -Recurse docs-stage/* $dir
+            Compress-Archive -Path $dir -DestinationPath "dist/$name.zip"
+          }
+          Pack "$ART/VST3/PhaseScope.vst3"      "PhaseScope-Windows-VST3"
+          Pack "$ART/Standalone/PhaseScope.exe" "PhaseScope-Windows-Standalone"
+
+      - name: Check ZIP contents
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          foreach ($z in Get-ChildItem dist/*.zip) {
+            $zip = [IO.Compression.ZipFile]::OpenRead($z.FullName)
+            $names = $zip.Entries | ForEach-Object { $_.FullName -replace '\\', '/' }
+            $zip.Dispose()
+            Write-Host "== $($z.Name)"; $names | ForEach-Object { Write-Host "  $_" }
+            foreach ($f in 'LICENSE.txt', 'README.txt', 'THIRD-PARTY-NOTICES.txt', 'third-party-licenses/JUCE-LICENSE.md') {
+              if (-not ($names | Where-Object { $_.EndsWith("/$f") })) { Write-Error "$f missing in $($z.Name)"; exit 1 }
+            }
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: PhaseScope-Windows
+          path: dist/*.zip
+
+      - name: Attach to release
+        if: env.RELEASE_TAG != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" dist/*.zip --clobber --repo "$GITHUB_REPOSITORY"
