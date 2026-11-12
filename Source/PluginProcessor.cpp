@@ -3,7 +3,7 @@
 
 namespace
 {
-    constexpr double silenceThreshold = 1.0e-8;   // ca. -80 dBFS Leistung
+    constexpr double silenceThreshold = 1.0e-8;   // approx. -80 dBFS power
     constexpr float  monoLossFloorDb  = -60.0f;
 }
 
@@ -34,12 +34,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout PhaseScopeProcessor::createL
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
     layout.add (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "integration", 1 }, "Integrationszeit",
+        juce::ParameterID { "integration", 1 }, "Integration Time",
         juce::NormalisableRange<float> (50.0f, 3000.0f, 1.0f, 0.4f), 300.0f,
         juce::AudioParameterFloatAttributes().withLabel ("ms")));
 
     layout.add (std::make_unique<juce::AudioParameterBool> (
-        juce::ParameterID { "mono", 1 }, "Mono-Abhoere", false));
+        juce::ParameterID { "mono", 1 }, "Mono Monitor", false));
 
     return layout;
 }
@@ -75,7 +75,7 @@ void PhaseScopeProcessor::updateAlpha()
     lastIntegrationMs = ms;
     const double tauSamples = juce::jmax (1.0, (double) ms * 0.001 * currentSampleRate);
     alpha = std::exp (-1.0 / tauSamples);
-    holdArmLength  = (int) (tauSamples * 3.0);   // ~95 % eingeschwungen
+    holdArmLength  = (int) (tauSamples * 3.0);   // ~95 % settled
     holdArmSamples = holdArmLength;
 }
 
@@ -114,7 +114,7 @@ void PhaseScopeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
 
         corrState[Full].push (a, l, r);
 
-        // Bänder: identische Filter auf L und R -> Phasengang hebt sich in der Korrelation auf
+        // Bands: identical filters on L and R -> their phase response cancels out in the correlation
         const float lLow  = lp1.processSample (0, l);
         const float rLow  = lp1.processSample (1, r);
         const float lRest = hp1.processSample (0, l);
@@ -150,7 +150,7 @@ void PhaseScopeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         {
             const double denom = std::sqrt (s.ll * s.rr);
             c = denom > 1.0e-20 ? (float) juce::jlimit (-1.0, 1.0, s.lr / denom)
-                                : 0.0f;   // ein Kanal stumm -> keine Korrelation
+                                : 0.0f;   // one channel silent -> no correlation
 
             if (holdArmed && c < minCorrelation[i].load (std::memory_order_relaxed))
                 minCorrelation[i].store (c, std::memory_order_relaxed);
@@ -165,7 +165,7 @@ void PhaseScopeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
     if (holdArmed && stereoEnergy > silenceThreshold && lossDb < maxMonoLossDb.load (std::memory_order_relaxed))
         maxMonoLossDb.store (lossDb, std::memory_order_relaxed);
 
-    // Rohsamples fürs Goniometer (vor einer eventuellen Mono-Summierung)
+    // Raw samples for the goniometer (before any mono summing)
     {
         const auto scope = fifo.write (numSamples);
         if (scope.blockSize1 > 0)
@@ -180,7 +180,7 @@ void PhaseScopeProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::
         }
     }
 
-    // Abhörschalter: Mono-Summe zum Gegenhören
+    // Monitor switch: mono sum for checking
     if (monoParam->load() > 0.5f)
     {
         for (int n = 0; n < numSamples; ++n)

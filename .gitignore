@@ -9,3 +9,5 @@ out/
 .idea/
 *.xcuserstate
 xcuserdata/
+build-*/
+dist/

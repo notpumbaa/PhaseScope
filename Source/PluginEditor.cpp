@@ -59,8 +59,8 @@ Goniometer::Goniometer()
 
 void Goniometer::resized()
 {
-    // Bewusst Software-Bild im ARGB-Format: macOS speichert native "RGB"-Bilder intern als ARGB,
-    // direkte Pixelzugriffe wären dort sonst transparent (schwarzes Scope).
+    // Deliberately a software ARGB image: macOS stores native "RGB" images as ARGB internally,
+    // so direct pixel access would otherwise end up transparent (black scope).
     phosphor = juce::Image (juce::Image::ARGB, juce::jmax (1, getWidth()), juce::jmax (1, getHeight()),
                             false, juce::SoftwareImageType());
     phosphor.clear (phosphor.getBounds(), juce::Colours::black);
@@ -74,14 +74,14 @@ void Goniometer::addSamples (const float* left, const float* right, int num)
     const int w = phosphor.getWidth(), h = phosphor.getHeight();
     juce::Image::BitmapData bd (phosphor, juce::Image::BitmapData::readWrite);
 
-    // Nachleuchten: alle Pixel abdunkeln
+    // Afterglow: darken all pixels
     for (int y = 0; y < h; ++y)
     {
         for (int x = 0; x < w; ++x)
         {
             auto* p = reinterpret_cast<juce::PixelARGB*> (bd.getPixelPointer (x, y));
             p->setARGB (255,
-                        (juce::uint8) ((p->getRed()   * 218) >> 8),   // ~0.85 pro Frame
+                        (juce::uint8) ((p->getRed()   * 218) >> 8),   // ~0.85 per frame
                         (juce::uint8) ((p->getGreen() * 218) >> 8),
                         (juce::uint8) ((p->getBlue()  * 218) >> 8));
         }
@@ -92,7 +92,7 @@ void Goniometer::addSamples (const float* left, const float* right, int num)
 
     constexpr float invSqrt2 = 0.70710678f;
 
-    // Auto-Gain: Spitzenwert verfolgen, langsam abfallen lassen
+    // Auto-gain: track the peak, let it decay slowly
     float framePeak = 0.0f;
     for (int i = 0; i < num; ++i)
     {
@@ -109,8 +109,8 @@ void Goniometer::addSamples (const float* left, const float* right, int num)
 
     for (int i = 0; i < num; ++i)
     {
-        // Konvention: nur L -> Diagonale oben links, nur R -> oben rechts,
-        // Mono -> senkrecht, gegenphasig -> waagerecht
+        // Convention: L only -> upper-left diagonal, R only -> upper right,
+        // mono -> vertical, out of phase -> horizontal
         const float x = (right[i] - left[i]) * invSqrt2 * gain;
         const float y = (right[i] + left[i]) * invSqrt2 * gain;
 
@@ -147,8 +147,8 @@ void Goniometer::paint (juce::Graphics& g)
     g.drawEllipse (juce::Rectangle<float> (r, r).withCentre (c), 0.6f);
 
     const float d = r * 0.70710678f;
-    g.drawLine (c.x - d, c.y - d, c.x + d, c.y + d, 0.8f);   // L-Achse
-    g.drawLine (c.x + d, c.y - d, c.x - d, c.y + d, 0.8f);   // R-Achse
+    g.drawLine (c.x - d, c.y - d, c.x + d, c.y + d, 0.8f);   // L axis
+    g.drawLine (c.x + d, c.y - d, c.x - d, c.y + d, 0.8f);   // R axis
     g.setColour (Colours_::grid);
     g.drawLine (c.x, c.y - r, c.x, c.y + r, 1.0f);           // M
     g.drawLine (c.x - r, c.y, c.x + r, c.y, 1.0f);           // S
@@ -168,7 +168,7 @@ void Goniometer::paint (juce::Graphics& g)
 }
 
 //==============================================================================
-// Korrelationsverlauf
+// Correlation history
 //==============================================================================
 void CorrelationHistory::push (float f, float l, bool fv, bool lv)
 {
@@ -183,10 +183,11 @@ void CorrelationHistory::paint (juce::Graphics& g)
     g.setColour (Colours_::panel);
     g.fillRoundedRectangle (area, 6.0f);
 
-    auto plot = area.reduced (36, 10).withTrimmedRight (-24);
+    // Leave a row at the top for the legend so the curves never cover it
+    auto plot = area.reduced (36, 10).withTrimmedTop (18).withTrimmedRight (-24);
     auto yFor = [&] (float v) { return plot.getY() + (1.0f - v) * 0.5f * plot.getHeight(); };
 
-    // negativer Bereich rot hinterlegen
+    // shade the negative range red
     g.setColour (Colours_::bad.withAlpha (0.08f));
     g.fillRect (plot.withTop (yFor (0.0f)));
 
@@ -222,15 +223,15 @@ void CorrelationHistory::paint (juce::Graphics& g)
     drawSeries (low,  lowOk,  Colours_::lowBand.withAlpha (0.85f), 1.2f);
     drawSeries (full, fullOk, Colours_::text, 1.6f);
 
-    // Legende
+    // Legend
     auto legend = area.reduced (10, 6).removeFromTop (14).withTrimmedLeft (36);
     g.setFont (font (11.0f));
     g.setColour (Colours_::text);
-    g.drawText ("Vollband", legend.removeFromLeft (70), juce::Justification::centredLeft);
+    g.drawText ("Full Band", legend.removeFromLeft (70), juce::Justification::centredLeft);
     g.setColour (Colours_::lowBand);
     g.drawText (juce::CharPointer_UTF8 ("Bass < 150 Hz"), legend.removeFromLeft (100), juce::Justification::centredLeft);
     g.setColour (Colours_::textDim);
-    g.drawText ("Verlauf letzte 10 s", legend, juce::Justification::centredRight);
+    g.drawText ("History, last 10 s", legend, juce::Justification::centredRight);
 }
 
 //==============================================================================
@@ -254,7 +255,7 @@ PhaseScopeEditor::PhaseScopeEditor (PhaseScopeProcessor& p)
     integrationSlider.setColour (juce::Slider::trackColourId, Colours_::grid);
     integrationSlider.setColour (juce::Slider::backgroundColourId, Colours_::track);
     integrationSlider.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-    integrationSlider.setTooltip ("Integrationszeit der Korrelationsmessung");
+    integrationSlider.setTooltip ("Integration time of the correlation measurement");
     addAndMakeVisible (integrationSlider);
 
     integrationLabel.setText ("Integration", juce::dontSendNotification);
@@ -264,7 +265,7 @@ PhaseScopeEditor::PhaseScopeEditor (PhaseScopeProcessor& p)
 
     monoButton.setColour (juce::ToggleButton::textColourId, Colours_::text);
     monoButton.setColour (juce::ToggleButton::tickColourId, Colours_::warn);
-    monoButton.setTooltip ("Ausgang zum Gegenhören auf Mono summieren");
+    monoButton.setTooltip ("Sum the output to mono for checking");
     addAndMakeVisible (monoButton);
 
     resetButton.setColour (juce::TextButton::buttonColourId, Colours_::track);
@@ -290,7 +291,7 @@ PhaseScopeEditor::~PhaseScopeEditor()
 void PhaseScopeEditor::resized()
 {
     auto area = getLocalBounds().reduced (16);
-    area.removeFromTop (34);   // Titel
+    area.removeFromTop (34);   // title
 
     auto historyArea = area.removeFromBottom (juce::jmax (120, getHeight() / 5));
     area.removeFromBottom (12);
@@ -319,7 +320,7 @@ void PhaseScopeEditor::resized()
 
 void PhaseScopeEditor::timerCallback()
 {
-    // Goniometer: alles aus dem FIFO holen, die neuesten Samples zeichnen
+    // Goniometer: drain the FIFO, draw the newest samples
     int total = 0;
     for (int got; (got = proc.readScopeSamples (scopeL.data() + total, scopeR.data() + total,
                                                 (int) scopeL.size() - total)) > 0;)
@@ -356,10 +357,10 @@ void PhaseScopeEditor::paint (juce::Graphics& g)
     g.drawText ("PhaseScope", title, juce::Justification::centredLeft);
     g.setColour (Colours_::textDim);
     g.setFont (font (12.0f));
-    g.drawText (juce::CharPointer_UTF8 ("Phasen- & Monokompatibilit\xc3\xa4t"), title, juce::Justification::centredRight);
+    g.drawText ("Phase & Mono Compatibility", title, juce::Justification::centredRight);
 
     using P = PhaseScopeProcessor;
-    drawCorrelationMeter (g, meterArea, "Korrelation (Vollband)",
+    drawCorrelationMeter (g, meterArea, "Correlation (Full Band)",
                           shownCorr[P::Full], shownMin[P::Full], shownPresent[P::Full], true);
 
     const int bandH = bandArea.getHeight() / 3;
@@ -368,10 +369,10 @@ void PhaseScopeEditor::paint (juce::Graphics& g)
                           juce::CharPointer_UTF8 ("Bass  < 150 Hz"),
                           shownCorr[P::Low], shownMin[P::Low], shownPresent[P::Low], false);
     drawCorrelationMeter (g, bands.removeFromTop (bandH).reduced (0, 3),
-                          juce::CharPointer_UTF8 ("Mitten  150 Hz \xe2\x80\x93 2,5 kHz"),
+                          juce::CharPointer_UTF8 ("Mids  150 Hz \xe2\x80\x93 2.5 kHz"),
                           shownCorr[P::Mid], shownMin[P::Mid], shownPresent[P::Mid], false);
     drawCorrelationMeter (g, bands.reduced (0, 3),
-                          juce::CharPointer_UTF8 ("H\xc3\xb6hen  > 2,5 kHz"),
+                          juce::CharPointer_UTF8 ("Highs  > 2.5 kHz"),
                           shownCorr[P::High], shownMin[P::High], shownPresent[P::High], false);
 
     drawMonoLoss (g, monoArea);
@@ -390,7 +391,7 @@ void PhaseScopeEditor::drawCorrelationMeter (juce::Graphics& g, juce::Rectangle<
     g.setFont (font (large ? 13.0f : 11.5f));
     g.drawText (label, header, juce::Justification::centredLeft);
 
-    // Min-Hold-Text
+    // Min-hold text
     if (minHold < 0.999f)
     {
         g.setColour (minHold < 0.0f ? Colours_::bad : Colours_::textDim);
@@ -403,7 +404,7 @@ void PhaseScopeEditor::drawCorrelationMeter (juce::Graphics& g, juce::Rectangle<
     g.drawText (present ? formatCorr (value) : juce::String (juce::CharPointer_UTF8 ("\xe2\x80\x94")),
                 valueBox, juce::Justification::centredRight);
 
-    // Skala
+    // Scale
     auto scaleRow = large ? r.removeFromBottom (14.0f) : juce::Rectangle<float>();
     auto bar = r.withSizeKeepingCentre (r.getWidth() - 8.0f, large ? 18.0f : 10.0f);
     auto xFor = [&] (float v) { return bar.getX() + (v + 1.0f) * 0.5f * bar.getWidth(); };
@@ -438,8 +439,8 @@ void PhaseScopeEditor::drawCorrelationMeter (juce::Graphics& g, juce::Rectangle<
         g.setFont (font (10.0f));
         g.setColour (Colours_::textDim);
         const juce::String minus (juce::CharPointer_UTF8 ("\xe2\x88\x92"));
-        g.drawText (minus + "1 gegenphasig", scaleRow.withWidth (110).withX (bar.getX()), juce::Justification::centredLeft);
-        g.drawText ("0 unkorreliert", juce::Rectangle<float> (100, scaleRow.getHeight()).withCentre ({ xFor (0.0f), scaleRow.getCentreY() }), juce::Justification::centred);
+        g.drawText (minus + "1 out of phase", scaleRow.withWidth (110).withX (bar.getX()), juce::Justification::centredLeft);
+        g.drawText ("0 uncorrelated", juce::Rectangle<float> (100, scaleRow.getHeight()).withCentre ({ xFor (0.0f), scaleRow.getCentreY() }), juce::Justification::centred);
         g.drawText ("+1 mono", scaleRow.withLeft (bar.getRight() - 80).withRight (bar.getRight()), juce::Justification::centredRight);
     }
 }
@@ -456,7 +457,7 @@ void PhaseScopeEditor::drawMonoLoss (juce::Graphics& g, juce::Rectangle<int> are
     auto header = r.removeFromTop (18.0f);
     g.setColour (Colours_::textDim);
     g.setFont (font (13.0f));
-    g.drawText ("Mono-Verlust (Summe vs. Stereo)", header, juce::Justification::centredLeft);
+    g.drawText ("Mono Loss (Sum vs. Stereo)", header, juce::Justification::centredLeft);
     if (shownMaxMonoLoss < -0.05f)
     {
         g.setColour (monoLossColour (shownMaxMonoLoss));
@@ -469,7 +470,7 @@ void PhaseScopeEditor::drawMonoLoss (juce::Graphics& g, juce::Rectangle<int> are
     g.drawText (present ? formatDb (shownMonoLoss) : juce::String (juce::CharPointer_UTF8 ("\xe2\x80\x94")),
                 valueBox, juce::Justification::centredRight);
 
-    // Balken 0 … -12 dB
+    // Bar 0 … -12 dB
     auto scaleRow = r.removeFromBottom (14.0f);
     auto bar = r.withSizeKeepingCentre (r.getWidth() - 8.0f, 12.0f);
     auto xFor = [&] (float db) { return bar.getX() + juce::jlimit (0.0f, 1.0f, -db / 12.0f) * bar.getWidth(); };

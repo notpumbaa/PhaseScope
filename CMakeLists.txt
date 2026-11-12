@@ -1,11 +1,15 @@
 cmake_minimum_required(VERSION 3.22)
+
+# macOS: universal binary (Apple Silicon + Intel), runs on macOS 12 and later
+set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "macOS architectures")
 project(PhaseScope VERSION 1.0.0)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# JUCE wird beim ersten Konfigurieren automatisch von GitHub geladen.
-# Alternativ: JUCE lokal klonen und -DJUCE_DIR=/pfad/zu/JUCE übergeben.
+# JUCE is downloaded from GitHub automatically on first configure.
+# Alternatively clone JUCE locally and pass -DJUCE_DIR=/path/to/JUCE.
 if(DEFINED JUCE_DIR)
     add_subdirectory(${JUCE_DIR} JUCE)
 else()
@@ -54,3 +58,21 @@ target_link_libraries(PhaseScope
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
+
+# Optional: helper tool that renders the screenshots in docs/
+option(PHASESCOPE_BUILD_SCREENSHOTS "Build the screenshot tool" OFF)
+if(PHASESCOPE_BUILD_SCREENSHOTS)
+    juce_add_console_app(PhaseScopeScreenshots PRODUCT_NAME "PhaseScopeScreenshots")
+    target_sources(PhaseScopeScreenshots PRIVATE
+        tools/Screenshots.cpp
+        Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp)
+    target_compile_definitions(PhaseScopeScreenshots PRIVATE
+        JucePlugin_Name="PhaseScope"
+        JUCE_WEB_BROWSER=0
+        JUCE_USE_CURL=0)
+    target_link_libraries(PhaseScopeScreenshots PRIVATE
+        juce::juce_audio_utils
+        juce::juce_dsp
+        juce::juce_recommended_config_flags)
+endif()

@@ -3,7 +3,7 @@
 #include "PluginProcessor.h"
 #include <vector>
 
-/** Goniometer (Lissajous / Vektorskop) mit Phosphor-Nachleuchten und Auto-Gain. */
+/** Goniometer (Lissajous / vectorscope) with phosphor afterglow and auto-gain. */
 class Goniometer : public juce::Component
 {
 public:
@@ -11,7 +11,7 @@ public:
     void resized() override;
     void paint (juce::Graphics&) override;
 
-    /** Neue Samples einzeichnen und Bild nachleuchten lassen. */
+    /** Draws new samples and lets the image fade out. */
     void addSamples (const float* left, const float* right, int num);
 
 private:
@@ -20,11 +20,11 @@ private:
     float peak = 0.0f;
 };
 
-/** Korrelationsverlauf über die letzten ~10 Sekunden. */
+/** Correlation history over the last ~10 seconds. */
 class CorrelationHistory : public juce::Component
 {
 public:
-    static constexpr int numPoints = 300;   // 10 s bei 30 Hz
+    static constexpr int numPoints = 300;   // 10 s at 30 Hz
     void push (float full, float low, bool fullValid, bool lowValid);
     void paint (juce::Graphics&) override;
 
@@ -45,6 +45,8 @@ public:
     void resized() override;
 
 private:
+    friend struct PhaseScopeScreenshotRenderer;   // tools/Screenshots.cpp
+
     void timerCallback() override;
     void drawCorrelationMeter (juce::Graphics&, juce::Rectangle<int> area, const juce::String& label,
                                float value, float minHold, bool present, bool large) const;
@@ -57,13 +59,13 @@ private:
 
     juce::Slider       integrationSlider;
     juce::Label        integrationLabel;
-    juce::ToggleButton monoButton  { juce::CharPointer_UTF8 ("Mono-Abh\xc3\xb6re") };
-    juce::TextButton   resetButton { juce::CharPointer_UTF8 ("Hold zur\xc3\xbc" "cksetzen") };
+    juce::ToggleButton monoButton  { "Mono Monitor" };
+    juce::TextButton   resetButton { "Reset Holds" };
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> integrationAttachment;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> monoAttachment;
 
-    // Angezeigte (für die Optik leicht geglättete) Werte
+    // Displayed values (slightly smoothed for the visuals)
     std::array<float, PhaseScopeProcessor::NumBands> shownCorr {};
     std::array<float, PhaseScopeProcessor::NumBands> shownMin {};
     std::array<bool,  PhaseScopeProcessor::NumBands> shownPresent {};

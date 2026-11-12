@@ -6,17 +6,17 @@
 #include <atomic>
 
 /**
-    PhaseScope – Analyse-Plugin für Phasen- und Monokompatibilität im Mastering.
+    PhaseScope - analysis plugin for phase and mono compatibility in mastering.
 
-    Gemessen wird:
-      - Korrelationsgrad L/R (Vollband), Integrationszeit einstellbar
-      - Korrelationsgrad in drei Bändern (Bass / Mitten / Höhen, Linkwitz-Riley-Weiche)
-      - Mono-Verlust: Pegel der Mono-Summe relativ zum Stereo-Pegel in dB
-      - Minimale Korrelation seit dem letzten Reset (Hold)
-      - Rohsamples für das Goniometer (lock-free FIFO zum Editor)
+    Measures:
+      - L/R correlation (full band), adjustable integration time
+      - Correlation in three bands (bass / mids / highs, Linkwitz-Riley crossover)
+      - Mono loss: level of the mono sum relative to the stereo level in dB
+      - Minimum correlation since the last reset (hold)
+      - Raw samples for the goniometer (lock-free FIFO to the editor)
 
-    Das Audiosignal wird unverändert durchgereicht – außer der Abhörschalter
-    "Mono" ist aktiv, dann wird (L+R)/2 auf beide Kanäle gelegt.
+    Audio is passed through unchanged - unless the "Mono Monitor" switch is
+    on, in which case (L+R)/2 is sent to both channels.
 */
 class PhaseScopeProcessor : public juce::AudioProcessor
 {
@@ -55,7 +55,7 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
-    // ---- Schnittstelle für den Editor (Message-Thread) ----
+    // ---- Interface for the editor (message thread) ----
     float getCorrelation (int band) const   { return correlation[(size_t) band].load (std::memory_order_relaxed); }
     float getMinCorrelation (int band) const{ return minCorrelation[(size_t) band].load (std::memory_order_relaxed); }
     bool  hasSignal (int band) const        { return signalPresent[(size_t) band].load (std::memory_order_relaxed); }
@@ -63,7 +63,7 @@ public:
     float getMaxMonoLossDb() const          { return maxMonoLossDb.load (std::memory_order_relaxed); }
     void  resetHolds()                      { resetRequested.store (true); }
 
-    /** Holt bis zu maxNum Stereo-Samples für das Goniometer. Gibt die Anzahl zurück. */
+    /** Fetches up to maxNum stereo samples for the goniometer. Returns the count. */
     int readScopeSamples (float* left, float* right, int maxNum);
 
 private:
@@ -95,15 +95,15 @@ private:
     std::atomic<bool>  resetRequested { false };
 
     double currentSampleRate = 44100.0;
-    double alpha = 0.0;           // Glättungskoeffizient (Integrationszeit)
+    double alpha = 0.0;           // smoothing coefficient (integration time)
     float  lastIntegrationMs = -1.0f;
-    int    holdArmSamples = 0;    // Hold erst nach Einschwingen scharf schalten
+    int    holdArmSamples = 0;    // arm the hold only after settling
     int    holdArmLength  = 0;
 
     std::atomic<float>* integrationParam = nullptr;
     std::atomic<float>* monoParam        = nullptr;
 
-    // Bandaufteilung: lp1 -> Bass, hp1 -> Rest; Rest -> lp2 (Mitten) / hp2 (Höhen)
+    // Band split: lp1 -> bass, hp1 -> rest; rest -> lp2 (mids) / hp2 (highs)
     juce::dsp::LinkwitzRileyFilter<float> lp1, hp1, lp2, hp2;
 
     static constexpr int fifoSize = 1 << 15;
