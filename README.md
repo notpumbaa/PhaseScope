@@ -4,7 +4,7 @@ https://notpumbaa.de/plugins/phasescope
 
 **Phase and mono compatibility analyzer for mixing and mastering** – VST3 / AU / Standalone, built with JUCE 8.
 
-PhaseScope shows not only *whether* your mix has phase problems, but *where* they are: phase-flipped mids and highs on an otherwise healthy low end spotted at a glance.
+PhaseScope shows not only *whether* your mix has phase problems, but *where* they are: a phase-flipped bass on an otherwise healthy mix can be spotted at a glance.
 
 ![PhaseScope detecting a bass that has flipped out of phase](docs/bass-out-of-phase.png)
 
