@@ -47,3 +47,7 @@ Eine lokale JUCE-Kopie lässt sich mit `-DJUCE_DIR=/pfad/zu/JUCE` verwenden.
 ## Einsatz
 
 Als letztes Plugin auf den Master-Bus (nach Limiter), damit das gemessen wird, was tatsächlich ausgespielt wird.
+
+## Lizenz
+
+PhaseScope steht unter der [GNU Affero General Public License v3.0](LICENSE) (AGPLv3). Es nutzt das [JUCE-Framework](https://juce.com), das für Open-Source-Projekte ebenfalls unter AGPLv3 lizenziert ist.
