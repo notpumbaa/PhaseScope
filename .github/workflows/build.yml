@@ -94,7 +94,7 @@ jobs:
         run: |
           for z in dist/*.zip; do
             unzip -l "$z"
-            for f in LICENSE.txt README.txt THIRD-PARTY-NOTICES.txt third-party-licenses/JUCE-LICENSE.md; do
+            for f in LICENSE.txt README.txt CHANGELOG.txt THIRD-PARTY-NOTICES.txt third-party-licenses/JUCE-LICENSE.md; do
               unzip -l "$z" | grep -q "/$f\$" || { echo "::error::$f missing in $z"; exit 1; }
             done
           done
@@ -163,7 +163,7 @@ jobs:
             $names = $zip.Entries | ForEach-Object { $_.FullName -replace '\\', '/' }
             $zip.Dispose()
             Write-Host "== $($z.Name)"; $names | ForEach-Object { Write-Host "  $_" }
-            foreach ($f in 'LICENSE.txt', 'README.txt', 'THIRD-PARTY-NOTICES.txt', 'third-party-licenses/JUCE-LICENSE.md') {
+            foreach ($f in 'LICENSE.txt', 'README.txt', 'CHANGELOG.txt', 'THIRD-PARTY-NOTICES.txt', 'third-party-licenses/JUCE-LICENSE.md') {
               if (-not ($names | Where-Object { $_.EndsWith("/$f") })) { Write-Error "$f missing in $($z.Name)"; exit 1 }
             }
           }

@@ -22,7 +22,7 @@ version="$(sed -n 's/^project(PhaseScope VERSION \([0-9.]*\).*/\1/p' "$root/CMak
 
 mkdir -p "$out/third-party-licenses"
 
-# Project license + readme
+# Project license, readme and patch notes
 cp "$root/LICENSE" "$out/LICENSE.txt"
 title="PhaseScope $version"
 underline="$(printf '%*s' "${#title}" '' | tr ' ' '=')"
@@ -31,6 +31,7 @@ sed -e "s|@VERSION@|$version|g" \
     -e "s|@SOURCE_URL@|https://github.com/notpumbaa/PhaseScope/tree/$ref|g" \
     "$root/packaging/README.txt.in" > "$out/README.txt"
 cp "$root/packaging/THIRD-PARTY-NOTICES.txt" "$out/THIRD-PARTY-NOTICES.txt"
+cp "$root/CHANGELOG.md" "$out/CHANGELOG.txt"
 
 # Third-party licenses: "<source path relative to JUCE>|<target name>"
 licenses=(

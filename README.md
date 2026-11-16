@@ -20,7 +20,9 @@ Grab the latest version from the [Releases](../../releases/latest) page.
 | `PhaseScope-Windows-VST3.zip` | VST3 plugin (64-bit) |
 | `PhaseScope-Windows-Standalone.zip` | Standalone app (64-bit) |
 
-macOS builds are universal (Apple Silicon + Intel) and run on macOS 12 or later. Every ZIP includes a `README.txt` with installation steps and the license files.
+macOS builds are universal (Apple Silicon + Intel) and run on macOS 12 or later. Every ZIP includes a `README.txt` with installation steps, the patch notes (`CHANGELOG.txt`) and the license files.
+
+What changed in each version is listed in the [patch notes](CHANGELOG.md) and on the [Releases](../../releases) page.
 
 ### Installing on macOS
 

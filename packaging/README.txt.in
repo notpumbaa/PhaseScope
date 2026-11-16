@@ -54,6 +54,15 @@ Insert PhaseScope as the last plugin on the master bus (after the limiter) so
 it measures what is actually played back.
 
 
+Patch notes
+-----------
+
+CHANGELOG.txt lists what changed in each version. The latest notes are also on
+the Releases page:
+
+    https://github.com/notpumbaa/PhaseScope/releases
+
+
 Third-party components
 ----------------------
 
